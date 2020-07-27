@@ -33,19 +33,19 @@ describe('Given the handleGenerator helper', function () {
   
   it("should catch errors in the function result of the call helper", function () {
     const mistake = () => {
-      throw new Error("oops");
+      throw new Error('oops');
     };
 
     const generator = function* () {
       try {
         yield call(mistake);
       } catch (err) {
-        return yield call(() => err.message);
+        return err.message;
       }
     };
 
     handleGenerator({}, generator(), (result) =>
-      expect(result).to.be.equal("oops")
+      expect(result).to.be.equal('oops')
     );
   });
 });
