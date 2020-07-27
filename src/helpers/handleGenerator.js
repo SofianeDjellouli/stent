@@ -28,43 +28,45 @@ export default function handleGenerator(machine, generator, done, resultOfPrevio
           return iterate(generatorThrow(generator, new Error(error)));
         }
 
-        try {
-          const funcResult = func(...args);
+        let funcResult = null;
 
-          if (!funcResult) {
-            handleMiddleware(MIDDLEWARE_GENERATOR_RESUMED, machine);
-            iterate(generatorNext(generator));
-            return;
-          }
-          
-          // promise
-          if (typeof funcResult.then !== 'undefined') {
-            funcResult.then(
-              result => {
-                handleMiddleware(MIDDLEWARE_GENERATOR_RESUMED, machine, result);
-                return iterate(generatorNext(generator, result));
-              },
-              error => {
-                handleMiddleware(MIDDLEWARE_GENERATOR_RESUMED, machine, error);
-                return iterate(generatorThrow(generator, error));
-              }
-            );
-          // generator
-          } else if (typeof funcResult.next === 'function') {
-            try {
-              cancelInsideGenerator = handleGenerator(machine, funcResult, generatorResult => {
-                handleMiddleware(MIDDLEWARE_GENERATOR_RESUMED, machine, generatorResult);
-                iterate(generatorNext(generator, generatorResult));
-              });
-            } catch (error) {
+        try {
+          funcResult = func(...args);
+        } catch(error){
+          return iterate(generatorThrow(generator, error));
+        }
+        
+        if (!funcResult) {
+          handleMiddleware(MIDDLEWARE_GENERATOR_RESUMED, machine);
+          iterate(generatorNext(generator));
+          return;
+        }
+        
+        // promise
+        if (typeof funcResult.then !== 'undefined') {
+          funcResult.then(
+            result => {
+              handleMiddleware(MIDDLEWARE_GENERATOR_RESUMED, machine, result);
+              return iterate(generatorNext(generator, result));
+            },
+            error => {
+              handleMiddleware(MIDDLEWARE_GENERATOR_RESUMED, machine, error);
               return iterate(generatorThrow(generator, error));
             }
-          } else {
-            handleMiddleware(MIDDLEWARE_GENERATOR_RESUMED, machine, funcResult);
-            iterate(generatorNext(generator, funcResult));
+          );
+        // generator
+        } else if (typeof funcResult.next === 'function') {
+          try {
+            cancelInsideGenerator = handleGenerator(machine, funcResult, generatorResult => {
+              handleMiddleware(MIDDLEWARE_GENERATOR_RESUMED, machine, generatorResult);
+              iterate(generatorNext(generator, generatorResult));
+            });
+          } catch (error) {
+            return iterate(generatorThrow(generator, error));
           }
-        } catch (error) {
-          return iterate(generatorThrow(generator, error));
+        } else {
+          handleMiddleware(MIDDLEWARE_GENERATOR_RESUMED, machine, funcResult);
+          iterate(generatorNext(generator, funcResult));
         }
 
       // a return statement of the normal function
